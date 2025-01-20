@@ -1,28 +1,40 @@
 from flask import Flask, request, jsonify
 import openai
+import os
 
+# Initialize Flask app
 app = Flask(__name__)
 
-# Set your OpenAI API key
-openai.api_key = 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
+# Set OpenAI API key from environment variable
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-@app.route('/chat', methods=['POST'])
-def chat():
-    user_input = request.json.get('message')
-    if not user_input:
-        return jsonify({"error": "No message provided"}), 400
+@app.route("/")
+def home():
+    return "OpenAI API is running!"
 
+@app.route("/generate", methods=["POST"])
+def generate_text():
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": user_input}]
+        # Get data from the request
+        data = request.json
+        prompt = data.get("prompt", "")
+        if not prompt:
+            return jsonify({"error": "Prompt is required"}), 400
+
+        # Call OpenAI API
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=prompt,
+            max_tokens=100
         )
-        answer = response['choices'][0]['message']['content']
-        return jsonify({"response": answer})
+
+        # Return response
+        return jsonify(response.choices[0].text.strip())
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    import os
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+    app.run(host="0.0.0.0", port=5000)
+
 
