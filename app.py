@@ -8,9 +8,10 @@ app = Flask(__name__)
 # Set OpenAI API key from environment variable
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-@app.route("/")
-def home():
-    return "OpenAI API is running!"
+@app.route('/api', methods=['POST'])
+def api_endpoint():
+    # Your logic here
+    return jsonify({"message": "Success"})
 
 @app.route("/generate", methods=["POST"])
 def generate_text():
