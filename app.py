@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 # Initialize Flask app
 app = Flask(__name__)
 
-# Set OpenAI API key from environment variable
+# Set OpenAI API key from environment variable (replace with your actual API key for testing)
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @app.route('/', methods=['POST'])
@@ -30,15 +30,16 @@ def api_endpoint():
         
         if prompt:
             # Call OpenAI API for chat-based models
-            # Since v1/completions is no longer supported, we use the chat endpoint
-            response = openai.Completion.create(
-                model="gpt-3.5-turbo",  # Or you can try gpt-4 if you prefer
-                prompt=prompt,  # Directly pass prompt as required
-                max_tokens=100
+            # Since we are on version >=1.0.0, use the correct API endpoint
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",  # Or gpt-4 if available in your plan
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
             )
 
             # Return the OpenAI response
-            return jsonify({"response": response['choices'][0]['text'].strip()}), 200
+            return jsonify({"response": response['choices'][0]['message']['content']}), 200
         
         # If neither 'input' nor 'prompt' is provided, return an error
         return jsonify({"error": "Input text or prompt is required"}), 400
