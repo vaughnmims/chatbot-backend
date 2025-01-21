@@ -28,7 +28,7 @@ def api_endpoint():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/generate", methods=["POST"])
+@app.route("/", methods=["POST"])
 def generate_text():
     try:
         # Get data from the request
