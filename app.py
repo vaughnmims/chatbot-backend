@@ -1,45 +1,15 @@
-from flask import Flask, request, jsonify
-import openai
-import os
-
-# Initialize Flask app
-app = Flask(__name__)
-
-# Set OpenAI API key from environment variable
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-@app.route('/', methods=['POST'])
-def api_endpoint():
-    try:
-        # Get data from the POST request
-        data = request.get_json()  # expects JSON input
-        prompt = data.get("prompt", "")  # Changed from "input" to "prompt"
-        
-        # Ensure that input is provided
-        if not prompt:
-            return jsonify({"error": "Prompt is required"}), 400
-
-        # Logic to process the input text (can be customized further)
-        response_text = f"You asked: {prompt}"
-
-        return jsonify({"response": response_text}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 @app.route("/generate", methods=["POST"])
 def generate_text():
     try:
         # Get data from the request
         data = request.json
-        prompt = data.get("prompt", "")  # Ensure consistency with the key
+        prompt = data.get("prompt", "")
         if not prompt:
             return jsonify({"error": "Prompt is required"}), 400
 
-        # Call OpenAI API (using your preferred model/engine)
+        # Call OpenAI API
         response = openai.Completion.create(
-            engine="text-davinci-003",  # Can change engine if needed
+            engine="text-davinci-003",
             prompt=prompt,
             max_tokens=100
         )
@@ -49,7 +19,3 @@ def generate_text():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
