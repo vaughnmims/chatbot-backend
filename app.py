@@ -17,7 +17,7 @@ def api_endpoint():
     try:
         # Get data from the POST request
         data = request.get_json()  # expects JSON input
-        input_text = data.get("input", "")
+        input_text = data.get("input", "")  # Expects 'input' key
         
         # Ensure that input is provided
         if not input_text:
@@ -40,7 +40,7 @@ def generate_text():
     try:
         # Get data from the request
         data = request.get_json()  # expects JSON input
-        prompt = data.get("prompt", "")
+        prompt = data.get("prompt", "")  # Expects 'prompt' key
         
         # Ensure that the prompt is provided
         if not prompt:
@@ -63,3 +63,4 @@ def generate_text():
 if __name__ == "__main__":
     # Ensure the app runs on the correct host and port
     app.run(host="0.0.0.0", port=5000)
+
