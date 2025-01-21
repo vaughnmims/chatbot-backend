@@ -29,10 +29,10 @@ def api_endpoint():
         prompt = data.get("prompt", "")
         
         if prompt:
-            # Call OpenAI API for chat models
+            # Call OpenAI API for chat-based models
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",  # Change this to gpt-4 if you want GPT-4
-                messages=[{"role": "user", "content": prompt}],  # The conversation format
+                model="gpt-3.5-turbo",  # Or you can try gpt-4 if you prefer
+                messages=[{"role": "user", "content": prompt}],  # Adjusted for chat completions
                 max_tokens=100
             )
 
