@@ -30,7 +30,7 @@ def api_endpoint():
         
         if prompt:
             # Call OpenAI API (corrected for new method)
-            response = openai.ChatCompletion.create(  # Correct method
+            response = openai.Chat.create(  # Corrected method
                 model="gpt-3.5-turbo",  # Can change to gpt-4 if needed
                 messages=[{"role": "user", "content": prompt}],  # Adjusted for chat completions
                 max_tokens=100
