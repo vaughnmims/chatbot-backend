@@ -13,14 +13,14 @@ def api_endpoint():
     try:
         # Get data from the POST request
         data = request.get_json()  # expects JSON input
-        input_text = data.get("input", "")
+        prompt = data.get("prompt", "")  # Changed from "input" to "prompt"
         
         # Ensure that input is provided
-        if not input_text:
-            return jsonify({"error": "Input text is required"}), 400
+        if not prompt:
+            return jsonify({"error": "Prompt is required"}), 400
 
         # Logic to process the input text (can be customized further)
-        response_text = f"You asked: {input_text}"
+        response_text = f"You asked: {prompt}"
 
         return jsonify({"response": response_text}), 200
 
@@ -33,7 +33,7 @@ def generate_text():
     try:
         # Get data from the request
         data = request.json
-        prompt = data.get("prompt", "")
+        prompt = data.get("prompt", "")  # Ensure consistency with the key
         if not prompt:
             return jsonify({"error": "Prompt is required"}), 400
 
