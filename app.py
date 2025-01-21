@@ -30,14 +30,14 @@ def api_endpoint():
         
         if prompt:
             # Call OpenAI API (updated for new API)
-            response = openai.ChatCompletion.create(
+            response = openai.completions.create(  # Notice this change
                 model="gpt-3.5-turbo",  # Can change to gpt-4 if needed
-                messages=[{"role": "user", "content": prompt}],  # Correct message format for chat completion
+                prompt=prompt,  # Directly use the 'prompt'
                 max_tokens=100
             )
 
             # Return the OpenAI response
-            return jsonify({"response": response['choices'][0]['message']['content'].strip()}), 200
+            return jsonify({"response": response['choices'][0]['text'].strip()}), 200
         
         # If neither 'input' nor 'prompt' is provided, return an error
         return jsonify({"error": "Input text or prompt is required"}), 400
@@ -48,4 +48,3 @@ def api_endpoint():
 if __name__ == "__main__":
     # Ensure the app runs on the correct host and port
     app.run(host="0.0.0.0", port=5000)
-
