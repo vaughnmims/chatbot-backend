@@ -1,36 +1,36 @@
-import openai
-import os  # To access environment variables
 from flask import Flask, request, jsonify
+import openai
+import os
 
-# Initialize Flask app
 app = Flask(__name__)
 
-# Get the API key from the environment variable
+# Use environment variable for OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Define the conversation history
-@app.route("/chat", methods=["POST"])
+@app.route("/", methods=["POST"])
 def chat():
     try:
-        # Retrieve user input from the POST request (you can customize this based on your use case)
+        # Get user input from the request
         user_input = request.json.get("user_input", "")
+        
+        # Define conversation messages
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": user_input}
         ]
         
-        # Make the API request using the correct endpoint for newer versions (1.0.0 and above)
-        response = openai.Chat.completions.create(  # Corrected to 'Chat.completions.create' method
-            model="gpt-3.5-turbo",  # Specify the model
-            messages=messages  # Pass the conversation history in the messages field
+        # Request the response from OpenAI
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # Use the correct model here
+            messages=messages
         )
-
-        # Return the assistant's reply
+        
+        # Return the assistant's response
         return jsonify({"response": response['choices'][0]['message']['content']})
 
-    except Exception as e:  # General exception handling for all possible errors
+    except Exception as e:
         return jsonify({"error": str(e)})
 
-# Define the port (render uses port 10000 by default)
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
+    app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
