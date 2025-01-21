@@ -12,8 +12,8 @@ messages = [
 
 # Make the API request using the correct endpoint for newer versions
 try:
-    response = openai.completions.create(  # Use completions.create for newer OpenAI API
-        model="gpt-3.5-turbo",  # Use the correct model; can also be "gpt-4" if you have access
+    response = openai.chat_completions.create(  # Use chat_completions.create for chat models
+        model="gpt-3.5-turbo",  # Specify the model; can also use "gpt-4" if you have access
         messages=messages  # Pass the conversation history in the messages field
     )
 
