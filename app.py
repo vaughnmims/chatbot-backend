@@ -29,15 +29,15 @@ def api_endpoint():
         prompt = data.get("prompt", "")
         
         if prompt:
-            # Call OpenAI API (updated for chat model)
-            response = openai.Completion.create(
-                model="gpt-3.5-turbo",  # You can change this to gpt-4 if you want
-                prompt=prompt,
+            # Call OpenAI API for chat models
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",  # Change this to gpt-4 if you want GPT-4
+                messages=[{"role": "user", "content": prompt}],  # The conversation format
                 max_tokens=100
             )
 
             # Return the OpenAI response
-            return jsonify({"response": response['choices'][0]['text'].strip()}), 200
+            return jsonify({"response": response['choices'][0]['message']['content'].strip()}), 200
         
         # If neither 'input' nor 'prompt' is provided, return an error
         return jsonify({"error": "Input text or prompt is required"}), 400
