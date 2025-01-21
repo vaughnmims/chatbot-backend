@@ -19,8 +19,8 @@ def chat():
             {"role": "user", "content": user_input}
         ]
         
-        # Make the API request using the correct endpoint for newer versions
-        response = openai.chat_completions.create(  # Use chat_completions.create for chat models
+        # Make the API request using the correct endpoint for newer versions (1.0.0 and above)
+        response = openai.Chat.completions.create(  # Corrected to 'Chat.completions.create' method
             model="gpt-3.5-turbo",  # Specify the model
             messages=messages  # Pass the conversation history in the messages field
         )
