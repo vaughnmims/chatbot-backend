@@ -8,7 +8,7 @@ app = Flask(__name__)
 # Set OpenAI API key from environment variable
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-@app.route('/', methods=['POST'])
+@app.route('/generate', methods=['POST'])
 def api_endpoint():
     try:
         # Get data from the POST request
@@ -28,7 +28,7 @@ def api_endpoint():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/", methods=["POST"])
+@app.route("/generate", methods=["POST"])
 def generate_text():
     try:
         # Get data from the request
