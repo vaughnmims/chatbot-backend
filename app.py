@@ -26,11 +26,10 @@ def chat():
         )
         
         # Return the assistant's response
-        return jsonify({"response": response['choices'][0]['message']['content']})
+        return jsonify({"response": response.choices[0].message['content']})
 
     except Exception as e:
         return jsonify({"error": str(e)})
-
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
