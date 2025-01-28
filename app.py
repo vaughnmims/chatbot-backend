@@ -1,10 +1,13 @@
 from flask import Flask, request, jsonify
 import openai
 import os
+from flask_cors import CORS  # Import CORS
 
 app = Flask(__name__)
 
-# Use environment variable for OpenAI API key
+# Enable CORS for all domains (you can restrict this to specific domains later if needed)
+CORS(app)  
+
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @app.route("/", methods=["POST"])
@@ -21,19 +24,15 @@ def chat():
         
         # Request the response from OpenAI
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",  # Specify the model
+            model="gpt-3.5-turbo",  # Use the correct model here
             messages=messages
         )
         
-        # Extract the assistant's reply
-        assistant_reply = response['choices'][0]['message']['content']
-        
         # Return the assistant's response
-        return jsonify({"response": assistant_reply})
+        return jsonify({"response": response['choices'][0]['message']['content']})
 
     except Exception as e:
         return jsonify({"error": str(e)})
-
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
