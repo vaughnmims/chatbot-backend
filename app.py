@@ -11,16 +11,8 @@ CORS(app)
 # Set OpenAI API Key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# GPT-4 Turbo Token Limit (adjust if needed)
-MAX_TOKENS = 4096  
-
-def trim_messages(messages, max_tokens=MAX_TOKENS):
-    """Ensure messages stay within the token limit."""
-    total_tokens = sum(len(msg['content'].split()) for msg in messages)
-    while total_tokens > max_tokens:
-        messages.pop(1)  # Remove the oldest user message
-        total_tokens = sum(len(msg['content'].split()) for msg in messages)
-    return messages
+# Your Assistant ID
+ASSISTANT_ID = "asst_0pDoVhgyEs3gNDvKgr0QzoAI"
 
 @app.route("/", methods=["POST"])
 def chat():
@@ -28,23 +20,30 @@ def chat():
         # Get user input from request
         user_input = request.json.get("user_input", "")
 
-        # Define conversation history
-        messages = [
-            {"role": "system", "content": "You are a helpful and knowledgeable assistant."},
-            {"role": "user", "content": user_input}
-        ]
+        # Create a thread (if needed) - You may want to persist thread IDs for conversations
+        thread = openai.beta.threads.create()
+        thread_id = thread.id
 
-        # Trim messages to fit within token limits
-        messages = trim_messages(messages)
-
-        # Request response from OpenAI
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",  # Updated to GPT-4 Turbo
-            messages=messages
+        # Send user input as a message to the assistant
+        openai.beta.threads.messages.create(
+            thread_id=thread_id,
+            role="user",
+            content=user_input
         )
 
-        # Extract assistant's response
-        assistant_reply = response['choices'][0]['message']['content']
+        # Run the assistant
+        run = openai.beta.threads.runs.create(
+            thread_id=thread_id,
+            assistant_id=ASSISTANT_ID
+        )
+
+        # Wait for completion (polling method)
+        while run.status not in ["completed", "failed"]:
+            run = openai.beta.threads.runs.retrieve(run.id)
+
+        # Get the assistant's response
+        messages = openai.beta.threads.messages.list(thread_id=thread_id)
+        assistant_reply = messages.data[0].content[0].text.value  # Extract text from response
 
         # Return assistant's response as JSON
         return jsonify({"response": assistant_reply})
