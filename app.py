@@ -1,15 +1,15 @@
 from flask import Flask, request, jsonify
-import openai
 import os
 from flask_cors import CORS
+from openai import OpenAI  # Correctly import OpenAI client
 
 app = Flask(__name__)
 
 # Enable CORS for all domains
 CORS(app)
 
-# Set OpenAI API Key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Your Assistant ID
 ASSISTANT_ID = "asst_0pDoVhgyEs3gNDvKgr0QzoAI"
@@ -20,29 +20,29 @@ def chat():
         # Get user input from request
         user_input = request.json.get("user_input", "")
 
-        # Create a thread (if needed) - You may want to persist thread IDs for conversations
-        thread = openai.beta.threads.create()
+        # Create a new thread
+        thread = client.beta.threads.create()
         thread_id = thread.id
 
-        # Send user input as a message to the assistant
-        openai.beta.threads.messages.create(
+        # Send user message to the assistant
+        client.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
             content=user_input
         )
 
         # Run the assistant
-        run = openai.beta.threads.runs.create(
+        run = client.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=ASSISTANT_ID
         )
 
-        # Wait for completion (polling method)
+        # Polling: Wait until the assistant completes processing
         while run.status not in ["completed", "failed"]:
-            run = openai.beta.threads.runs.retrieve(run.id)
+            run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
 
-        # Get the assistant's response
-        messages = openai.beta.threads.messages.list(thread_id=thread_id)
+        # Retrieve assistant's response
+        messages = client.beta.threads.messages.list(thread_id=thread_id)
         assistant_reply = messages.data[0].content[0].text.value  # Extract text from response
 
         # Return assistant's response as JSON
