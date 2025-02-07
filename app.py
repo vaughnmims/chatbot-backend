@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import os
 from flask_cors import CORS
-import openai
+import openai  # Import OpenAI client correctly
 
 app = Flask(__name__)
 
@@ -11,44 +11,42 @@ CORS(app)
 # Initialize OpenAI client
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Store active conversation context in memory (for development, can be stored in DB for production)
-active_conversations = {}
+# Your Assistant ID
+ASSISTANT_ID = "asst_0pDoVhgyEs3gNDvKgr0QzoAI"
 
 @app.route("/", methods=["POST"])
 def chat():
     try:
         # Get user input from request
         user_input = request.json.get("user_input", "")
-        thread_id = str(request.json.get("thread_id", ""))  # Ensure thread_id is treated as a string
 
-        if not user_input:
-            return jsonify({"error": "No user input provided"}), 400
+        # Create a new thread
+        thread = openai.Thread.create()  # Using correct method for creating a thread
+        thread_id = thread.id
 
-        # If thread_id doesn't exist, create a new conversation history
-        if not thread_id:
-            thread_id = str(len(active_conversations) + 1)  # Unique thread ID for this conversation
-            active_conversations[thread_id] = []  # Initialize message history for the new thread
-
-        # Add user message to the thread history
-        active_conversations[thread_id].append({"role": "user", "content": user_input})
-
-        # Send the conversation history (messages) to OpenAI API
-        response = openai.chat.completions.create(  # Update: Using `chat.completions.create` for new SDK
-            model="gpt-3.5-turbo",  # You can use gpt-4 as needed
-            messages=active_conversations[thread_id]  # This sends the conversation history
+        # Send user message to the assistant (use the correct API endpoint)
+        openai.ThreadMessage.create(
+            thread_id=thread_id,
+            role="user",
+            content=user_input
         )
 
-        # Correct way to extract assistant's reply using dot notation
-        assistant_reply = response['choices'][0].message['content']
+        # Run the assistant (correcting the method name to match OpenAI's API)
+        run = openai.ThreadRun.create(
+            thread_id=thread_id,
+            assistant_id=ASSISTANT_ID
+        )
 
-        # Add assistant's response to the thread history
-        active_conversations[thread_id].append({"role": "assistant", "content": assistant_reply})
+        # Polling: Wait until the assistant completes processing
+        while run["status"] not in ["completed", "failed"]:
+            run = openai.ThreadRun.retrieve(thread_id=thread_id, run_id=run["id"])
 
-        # Return assistant's response as JSON along with thread_id for future use
-        return jsonify({
-            "response": assistant_reply,
-            "thread_id": thread_id
-        })
+        # Retrieve assistant's response
+        messages = openai.ThreadMessage.list(thread_id=thread_id)
+        assistant_reply = messages["data"][0]["content"]  # Extract assistant's response text
+
+        # Return assistant's response as JSON
+        return jsonify({"response": assistant_reply})
 
     except Exception as e:
         return jsonify({"error": str(e)})
