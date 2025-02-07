@@ -33,8 +33,8 @@ def chat():
         active_conversations[thread_id].append({"role": "user", "content": user_input})
 
         # Send the conversation history (messages) to OpenAI API
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",  # or gpt-4, depending on your model
+        response = openai.chat.completions.create(  # Update: Using `chat.completions.create` for new SDK
+            model="gpt-3.5-turbo",  # You can use gpt-4 as needed
             messages=active_conversations[thread_id]  # This sends the conversation history
         )
 
