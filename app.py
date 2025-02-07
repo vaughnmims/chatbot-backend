@@ -38,8 +38,8 @@ def chat():
             messages=active_conversations[thread_id]  # This sends the conversation history
         )
 
-        # Get assistant's response correctly from the response structure
-        assistant_reply = response['choices'][0]['message']['content']
+        # Correct way to extract assistant's reply using dot notation
+        assistant_reply = response['choices'][0].message['content']
 
         # Add assistant's response to the thread history
         active_conversations[thread_id].append({"role": "assistant", "content": assistant_reply})
