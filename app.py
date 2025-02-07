@@ -11,9 +11,6 @@ CORS(app)
 # Initialize OpenAI client
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Your Assistant ID (not actually used in this API call)
-ASSISTANT_ID = "asst_0pDoVhgyEs3gNDvKgr0QzoAI"
-
 # Store active conversation context in memory (for development, can be stored in DB for production)
 active_conversations = {}
 
@@ -22,10 +19,11 @@ def chat():
     try:
         # Get user input and thread_id from request
         user_input = request.json.get("user_input", "")
-        thread_id = request.json.get("thread_id")
+        thread_id = str(request.json.get("thread_id", ""))  # Ensure thread_id is treated as a string
 
         # If thread_id doesn't exist, create a new conversation history
         if not thread_id:
+            # Generate a new thread_id if none is provided (you can change this to use DB or UUID)
             thread_id = str(len(active_conversations) + 1)  # Unique thread ID for this conversation
             active_conversations[thread_id] = []  # Initialize message history for the new thread
 
