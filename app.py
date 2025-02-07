@@ -33,7 +33,7 @@ def chat():
         active_conversations[thread_id].append({"role": "user", "content": user_input})
 
         # Send user message to OpenAI with the current thread context
-        response = openai.ChatCompletion.create(
+        response = openai.completions.create(
             model="gpt-3.5-turbo",  # or any other model you're using
             messages=active_conversations[thread_id]
         )
