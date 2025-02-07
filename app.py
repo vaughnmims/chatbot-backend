@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import os
 from flask_cors import CORS
-import openai  # Import OpenAI client correctly
+from openai import OpenAI  # Correctly import OpenAI client
 
 app = Flask(__name__)
 
@@ -9,9 +9,9 @@ app = Flask(__name__)
 CORS(app)
 
 # Initialize OpenAI client
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Your Assistant ID (if needed for some specific purposes)
+# Your Assistant ID
 ASSISTANT_ID = "asst_0pDoVhgyEs3gNDvKgr0QzoAI"
 
 @app.route("/", methods=["POST"])
@@ -20,17 +20,30 @@ def chat():
         # Get user input from request
         user_input = request.json.get("user_input", "")
 
-        # Send user message to the assistant (use ChatCompletion for conversational threads)
-        response = openai.ChatCompletion.create(
-            model="gpt-4",  # Specify GPT-4 model here
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},  # Optional system message to set context
-                {"role": "user", "content": user_input}  # User's message
-            ]
+        # Create a new thread
+        thread = client.beta.threads.create()
+        thread_id = thread.id
+
+        # Send user message to the assistant
+        client.beta.threads.messages.create(
+            thread_id=thread_id,
+            role="user",
+            content=user_input
         )
 
-        # Extract assistant's reply
-        assistant_reply = response['choices'][0]['message']['content']
+        # Run the assistant
+        run = client.beta.threads.runs.create(
+            thread_id=thread_id,
+            assistant_id=ASSISTANT_ID
+        )
+
+        # Polling: Wait until the assistant completes processing
+        while run.status not in ["completed", "failed"]:
+            run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
+
+        # Retrieve assistant's response
+        messages = client.beta.threads.messages.list(thread_id=thread_id)
+        assistant_reply = messages.data[0].content[0].text.value  # Extract text from response
 
         # Return assistant's response as JSON
         return jsonify({"response": assistant_reply})
