@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import os
 from flask_cors import CORS
-from openai import OpenAI  # Correctly import OpenAI client
+import openai
 
 app = Flask(__name__)
 
@@ -9,44 +9,48 @@ app = Flask(__name__)
 CORS(app)
 
 # Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Your Assistant ID
 ASSISTANT_ID = "asst_0pDoVhgyEs3gNDvKgr0QzoAI"
 
+# Store active threads in memory (this is temporary; for production, use a database)
+active_threads = {}
+
 @app.route("/", methods=["POST"])
 def chat():
     try:
-        # Get user input from request
+        # Get user input and thread_id from request
         user_input = request.json.get("user_input", "")
+        thread_id = request.json.get("thread_id")
 
-        # Create a new thread
-        thread = client.beta.threads.create()
-        thread_id = thread.id
+        # If thread_id doesn't exist, create a new thread
+        if not thread_id:
+            # Create a new thread
+            thread = openai.Thread.create()
+            thread_id = thread['id']
+            active_threads[thread_id] = []  # Initialize message history for the new thread
 
-        # Send user message to the assistant
-        client.beta.threads.messages.create(
-            thread_id=thread_id,
-            role="user",
-            content=user_input
+        # Add user message to the thread history
+        active_threads[thread_id].append({"role": "user", "content": user_input})
+
+        # Send user message to OpenAI with the current thread context
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # or any other model you are using
+            messages=active_threads[thread_id]
         )
 
-        # Run the assistant
-        run = client.beta.threads.runs.create(
-            thread_id=thread_id,
-            assistant_id=ASSISTANT_ID
-        )
+        # Get assistant's response
+        assistant_reply = response['choices'][0]['message']['content']
 
-        # Polling: Wait until the assistant completes processing
-        while run.status not in ["completed", "failed"]:
-            run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
+        # Add assistant's response to the thread history
+        active_threads[thread_id].append({"role": "assistant", "content": assistant_reply})
 
-        # Retrieve assistant's response
-        messages = client.beta.threads.messages.list(thread_id=thread_id)
-        assistant_reply = messages.data[0].content[0].text.value  # Extract text from response
-
-        # Return assistant's response as JSON
-        return jsonify({"response": assistant_reply})
+        # Return assistant's response as JSON along with thread_id for future use
+        return jsonify({
+            "response": assistant_reply,
+            "thread_id": thread_id
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)})
