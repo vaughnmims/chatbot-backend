@@ -38,7 +38,7 @@ def chat():
             messages=active_conversations[thread_id]  # This sends the conversation history
         )
 
-        # Get assistant's response
+        # Get assistant's response correctly from the response structure
         assistant_reply = response['choices'][0]['message']['content']
 
         # Add assistant's response to the thread history
