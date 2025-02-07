@@ -17,22 +17,24 @@ active_conversations = {}
 @app.route("/", methods=["POST"])
 def chat():
     try:
-        # Get user input and thread_id from request
+        # Get user input from request
         user_input = request.json.get("user_input", "")
         thread_id = str(request.json.get("thread_id", ""))  # Ensure thread_id is treated as a string
 
+        if not user_input:
+            return jsonify({"error": "No user input provided"}), 400
+
         # If thread_id doesn't exist, create a new conversation history
         if not thread_id:
-            # Generate a new thread_id if none is provided (you can change this to use DB or UUID)
             thread_id = str(len(active_conversations) + 1)  # Unique thread ID for this conversation
             active_conversations[thread_id] = []  # Initialize message history for the new thread
 
         # Add user message to the thread history
         active_conversations[thread_id].append({"role": "user", "content": user_input})
 
-        # Send user message to OpenAI with the current thread context
-        response = openai.chat_completions.create(
-            model="gpt-3.5-turbo",  # or any other model you're using
+        # Send the conversation history (messages) to OpenAI API
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # or gpt-4, depending on your model
             messages=active_conversations[thread_id]  # This sends the conversation history
         )
 
