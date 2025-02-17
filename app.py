@@ -17,12 +17,14 @@ ASSISTANT_ID = "asst_0pDoVhgyEs3gNDvKgr0QzoAI"
 @app.route("/", methods=["POST"])
 def chat():
     try:
-        # Get user input from request
+        # Get user input and thread_id from request
         user_input = request.json.get("user_input", "")
+        thread_id = request.json.get("thread_id")
 
-        # Create a new thread
-        thread = client.beta.threads.create()
-        thread_id = thread.id
+        # If no thread_id is provided, create a new thread
+        if not thread_id:
+            thread = client.beta.threads.create()
+            thread_id = thread.id
 
         # Send user message to the assistant
         client.beta.threads.messages.create(
@@ -45,8 +47,8 @@ def chat():
         messages = client.beta.threads.messages.list(thread_id=thread_id)
         assistant_reply = messages.data[0].content[0].text.value  # Extract text from response
 
-        # Return assistant's response as JSON
-        return jsonify({"response": assistant_reply})
+        # Return assistant's response and thread_id
+        return jsonify({"response": assistant_reply, "thread_id": thread_id})
 
     except Exception as e:
         return jsonify({"error": str(e)})
