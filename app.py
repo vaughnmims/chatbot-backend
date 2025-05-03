@@ -12,7 +12,7 @@ CORS(app)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Your Assistant ID
-ASSISTANT_ID = "asst_0pDoVhgyEs3gNDvKgr0QzoAI"
+ASSISTANT_ID = "asst_evvcHxQQTnCCFqnDOxcsPjJL"
 
 @app.route("/", methods=["POST"])
 def chat():
