@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chat Assistant</title>
+</head>
+<body>
+  <h2>Upload a document and ask your question</h2>
+  <form id="chatForm" enctype="multipart/form-data">
+    <input type="text" name="user_input" id="user_input" placeholder="Enter your message" required>
+    <input type="file" name="file" id="file">
+    <button type="submit">Send</button>
+  </form>
+  <div id="responseBox"></div>
+
+  <script>
+    document.getElementById("chatForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+
+      const res = await fetch("/", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+      document.getElementById("responseBox").innerText = data.response || data.error;
+    });
+  </script>
+</body>
+</html>
