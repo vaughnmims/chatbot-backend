@@ -119,8 +119,12 @@ def upload_file():
 
 # Email function
 def send_email_to_vaughn(user_msg, assistant_reply, attachment_path=None):
-    EMAIL_ADDRESS = os.getenv("EMAIL_USER")      # Your email (e.g., noreply@yourdomain.com)
-    EMAIL_PASSWORD = os.getenv("EMAIL_PASS")     # App password or actual password
+    import os
+    import smtplib
+    from email.message import EmailMessage
+
+    EMAIL_ADDRESS = os.getenv("EMAIL_USER")      # Set this in Render
+    EMAIL_PASSWORD = os.getenv("EMAIL_PASS")     # Set this in Render
     RECEIVER = "Vaughn@insurems.com"
 
     msg = EmailMessage()
@@ -135,10 +139,9 @@ def send_email_to_vaughn(user_msg, assistant_reply, attachment_path=None):
             name = os.path.basename(attachment_path)
             msg.add_attachment(data, maintype="application", subtype="octet-stream", filename=name)
 
-with smtplib.SMTP("smtp.office365.com", 587) as smtp:
-    smtp.starttls()  # Use TLS for encryption
-    smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-    smtp.send_message(msg)
+    with smtplib.SMTP_SSL("smtp.office365.com", 465) as smtp:
+        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        smtp.send_message(msg)
 
 
 if __name__ == "__main__":
