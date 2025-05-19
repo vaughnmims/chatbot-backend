@@ -135,9 +135,11 @@ def send_email_to_vaughn(user_msg, assistant_reply, attachment_path=None):
             name = os.path.basename(attachment_path)
             msg.add_attachment(data, maintype="application", subtype="octet-stream", filename=name)
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-        smtp.send_message(msg)
+with smtplib.SMTP("smtp.office365.com", 587) as smtp:
+    smtp.starttls()  # Use TLS for encryption
+    smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+    smtp.send_message(msg)
+
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
