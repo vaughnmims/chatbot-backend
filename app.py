@@ -1,8 +1,8 @@
+import os
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from openai import OpenAI
 from werkzeug.utils import secure_filename
-import os
 import smtplib
 from email.message import EmailMessage
 
@@ -18,7 +18,8 @@ ASSISTANT_ID = "asst_evvcHxQQTnCCFqnDOxcsPjJL"
 
 # Folder to store uploaded files
 UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
 # Serve the chat form
 @app.route("/", methods=["GET"])
