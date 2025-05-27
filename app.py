@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 import os
 import smtplib
 from email.message import EmailMessage
-import time  # For sleep in polling loop
+import time
 
 app = Flask(__name__)
 CORS(app)
@@ -19,7 +19,13 @@ ASSISTANT_ID = "asst_evvcHxQQTnCCFqnDOxcsPjJL"
 
 # Folder to store uploaded files
 UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Check if uploads folder exists and is directory; otherwise handle
+if os.path.exists(UPLOAD_FOLDER):
+    if not os.path.isdir(UPLOAD_FOLDER):
+        raise RuntimeError(f"'{UPLOAD_FOLDER}' exists but is not a directory. Please delete or rename it before running.")
+else:
+    os.makedirs(UPLOAD_FOLDER)
 
 # Serve the chat form
 @app.route("/", methods=["GET"])
@@ -56,7 +62,7 @@ def chat():
             thread = client.beta.threads.create()
             thread_id = thread.id
 
-        # Send message to assistant
+        # Send user message to assistant thread
         client.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
@@ -69,34 +75,30 @@ def chat():
             assistant_id=ASSISTANT_ID
         )
 
-        # Poll until complete or timeout
-        max_retries = 30
-        retries = 0
-        while run.status not in ["completed", "failed"] and retries < max_retries:
-            time.sleep(1)  # wait 1 second before polling again
+        # Poll until run is complete or failed (wait up to ~10 seconds)
+        max_polls = 20
+        polls = 0
+        while run.status not in ["completed", "failed"]:
+            time.sleep(0.5)
             run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-            retries += 1
-
-        if retries == max_retries:
-            return jsonify({"error": "Assistant run timed out"}), 504
+            polls += 1
+            if polls >= max_polls:
+                return jsonify({"error": "Assistant response timeout"}), 504
 
         if run.status == "failed":
             return jsonify({"error": "Assistant run failed"}), 500
 
-        # Get assistant response (take last message from assistant)
+        # Fetch all messages for the thread
         messages = client.beta.threads.messages.list(thread_id=thread_id)
         assistant_messages = [m for m in messages.data if m.role == "assistant"]
 
         if not assistant_messages:
             return jsonify({"error": "No assistant response found"}), 500
 
-        # Extract text safely
-        try:
-            assistant_reply = assistant_messages[-1].content[0].text.value
-        except Exception as e:
-            return jsonify({"error": f"Failed to parse assistant response: {str(e)}"}), 500
+        # Take the last assistant message's text value
+        assistant_reply = assistant_messages[-1].content[0].text.value
 
-        # Email the conversation + attachment
+        # Email the conversation + attachment if present
         send_email_to_vaughn(user_input, assistant_reply, file_path)
 
         return jsonify({"response": assistant_reply, "thread_id": thread_id})
@@ -105,14 +107,14 @@ def chat():
         return jsonify({"error": str(e)}), 500
 
 
-# Email function
+# Email sending helper
 def send_email_to_vaughn(user_msg, assistant_reply, attachment_path=None):
     EMAIL_ADDRESS = os.getenv("EMAIL_USER")      # Your sending email
     EMAIL_PASSWORD = os.getenv("EMAIL_PASS")     # App password
     RECEIVER = "Vaughn@insurems.com"
 
     if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
-        print("Email credentials not set")
+        print("Email credentials not set. Skipping email.")
         return
 
     msg = EmailMessage()
@@ -130,6 +132,7 @@ def send_email_to_vaughn(user_msg, assistant_reply, attachment_path=None):
         except Exception as e:
             print(f"Error attaching file: {e}")
 
+    # Connect using SMTP_SSL on port 465 (Office365 sometimes uses 587 STARTTLS, adjust if needed)
     try:
         with smtplib.SMTP_SSL("smtp.office365.com", 465) as smtp:
             smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
@@ -140,4 +143,3 @@ def send_email_to_vaughn(user_msg, assistant_reply, attachment_path=None):
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
-
