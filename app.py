@@ -1,12 +1,16 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from openai import OpenAI
+from werkzeug.utils import secure_filename
 import os
 import smtplib
 from email.message import EmailMessage
 
 app = Flask(__name__)
 CORS(app)
+
+# Limit upload size to 5MB
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -42,7 +46,8 @@ def chat():
         # Save uploaded file if present
         file_path = None
         if uploaded_file:
-            file_path = os.path.join(UPLOAD_FOLDER, uploaded_file.filename)
+            safe_filename = secure_filename(uploaded_file.filename)
+            file_path = os.path.join(UPLOAD_FOLDER, safe_filename)
             uploaded_file.save(file_path)
 
         # Create thread if not provided
@@ -105,10 +110,13 @@ def send_email_to_vaughn(user_msg, assistant_reply, attachment_path=None):
     msg.set_content(f"User message:\n{user_msg}\n\nAssistant replied:\n{assistant_reply}")
 
     if attachment_path:
-        with open(attachment_path, "rb") as f:
-            data = f.read()
-            name = os.path.basename(attachment_path)
-            msg.add_attachment(data, maintype="application", subtype="octet-stream", filename=name)
+        try:
+            with open(attachment_path, "rb") as f:
+                data = f.read()
+                name = os.path.basename(attachment_path)
+                msg.add_attachment(data, maintype="application", subtype="octet-stream", filename=name)
+        except Exception as e:
+            print(f"Error attaching file: {e}")
 
     with smtplib.SMTP_SSL("smtp.office365.com", 465) as smtp:
         smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
