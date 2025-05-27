@@ -1,10 +1,11 @@
-import os
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from openai import OpenAI
 from werkzeug.utils import secure_filename
+import os
 import smtplib
 from email.message import EmailMessage
+import time  # For sleep in polling loop
 
 app = Flask(__name__)
 CORS(app)
@@ -18,8 +19,7 @@ ASSISTANT_ID = "asst_evvcHxQQTnCCFqnDOxcsPjJL"
 
 # Folder to store uploaded files
 UPLOAD_FOLDER = "uploads"
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Serve the chat form
 @app.route("/", methods=["GET"])
@@ -69,9 +69,16 @@ def chat():
             assistant_id=ASSISTANT_ID
         )
 
-        # Poll until complete
-        while run.status not in ["completed", "failed"]:
+        # Poll until complete or timeout
+        max_retries = 30
+        retries = 0
+        while run.status not in ["completed", "failed"] and retries < max_retries:
+            time.sleep(1)  # wait 1 second before polling again
             run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
+            retries += 1
+
+        if retries == max_retries:
+            return jsonify({"error": "Assistant run timed out"}), 504
 
         if run.status == "failed":
             return jsonify({"error": "Assistant run failed"}), 500
@@ -83,7 +90,11 @@ def chat():
         if not assistant_messages:
             return jsonify({"error": "No assistant response found"}), 500
 
-        assistant_reply = assistant_messages[-1].content[0].text.value
+        # Extract text safely
+        try:
+            assistant_reply = assistant_messages[-1].content[0].text.value
+        except Exception as e:
+            return jsonify({"error": f"Failed to parse assistant response: {str(e)}"}), 500
 
         # Email the conversation + attachment
         send_email_to_vaughn(user_input, assistant_reply, file_path)
@@ -119,10 +130,14 @@ def send_email_to_vaughn(user_msg, assistant_reply, attachment_path=None):
         except Exception as e:
             print(f"Error attaching file: {e}")
 
-    with smtplib.SMTP_SSL("smtp.office365.com", 465) as smtp:
-        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-        smtp.send_message(msg)
+    try:
+        with smtplib.SMTP_SSL("smtp.office365.com", 465) as smtp:
+            smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+            smtp.send_message(msg)
+    except Exception as e:
+        print(f"Error sending email: {e}")
 
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
+
