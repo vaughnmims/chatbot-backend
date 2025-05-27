@@ -1,30 +1,149 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Chat Assistant</title>
+    <meta charset="UTF-8">
+    <title>Multi-Upload Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 2rem;
+            max-width: 600px;
+            margin: auto;
+        }
+        textarea, button {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+        }
+        #drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 6px;
+            padding: 1rem;
+            text-align: center;
+            color: #888;
+            margin-bottom: 1rem;
+            transition: background-color 0.2s ease-in-out;
+        }
+        #drop-area.highlight {
+            background-color: #f0f8ff;
+            border-color: #007BFF;
+            color: #007BFF;
+        }
+        #file-list {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+        #response-box {
+            background-color: #f1f1f1;
+            padding: 1rem;
+            border-radius: 6px;
+            display: none;
+        }
+    </style>
 </head>
 <body>
-  <h2>Upload a document and ask your question</h2>
-  <form id="chatForm" enctype="multipart/form-data">
-    <input type="text" name="user_input" id="user_input" placeholder="Enter your message" required>
-    <input type="file" name="file" id="file">
-    <button type="submit">Send</button>
-  </form>
-  <div id="responseBox"></div>
+    <h2>Upload Documents & Chat</h2>
 
-  <script>
-    document.getElementById("chatForm").addEventListener("submit", async function(e) {
-      e.preventDefault();
-      const formData = new FormData(this);
+    <form id="chat-form">
+        <textarea name="user_input" id="user_input" placeholder="Enter your message..." required></textarea>
 
-      const res = await fetch("/", {
-        method: "POST",
-        body: formData
-      });
+        <div id="drop-area">
+            <p>Drag & drop files here or click to select</p>
+            <input type="file" name="file" id="fileElem" multiple style="display:none">
+            <button type="button" id="fileSelect">Select Files</button>
+            <div id="file-list"></div>
+        </div>
 
-      const data = await res.json();
-      document.getElementById("responseBox").innerText = data.response || data.error;
-    });
-  </script>
+        <input type="hidden" name="thread_id" id="thread_id" value="">
+        <button type="submit">Send</button>
+    </form>
+
+    <div id="response-box">
+        <h4>Assistant Response:</h4>
+        <div id="response-text"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById("chat-form");
+        const dropArea = document.getElementById("drop-area");
+        const fileInput = document.getElementById("fileElem");
+        const fileSelect = document.getElementById("fileSelect");
+        const fileList = document.getElementById("file-list");
+        let filesToUpload = [];
+
+        fileSelect.addEventListener("click", () => fileInput.click());
+
+        fileInput.addEventListener("change", () => {
+            filesToUpload = [...fileInput.files];
+            updateFileList();
+        });
+
+        ["dragenter", "dragover"].forEach(eventName => {
+            dropArea.addEventListener(eventName, e => {
+                e.preventDefault();
+                dropArea.classList.add("highlight");
+            }, false);
+        });
+
+        ["dragleave", "drop"].forEach(eventName => {
+            dropArea.addEventListener(eventName, e => {
+                e.preventDefault();
+                dropArea.classList.remove("highlight");
+            }, false);
+        });
+
+        dropArea.addEventListener("drop", e => {
+            filesToUpload = [...filesToUpload, ...e.dataTransfer.files];
+            updateFileList();
+        });
+
+        function updateFileList() {
+            fileList.innerHTML = filesToUpload.map(f => `<div>${f.name}</div>`).join("");
+        }
+
+        form.addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData();
+            formData.append("user_input", document.getElementById("user_input").value);
+            formData.append("thread_id", document.getElementById("thread_id").value);
+
+            filesToUpload.forEach(file => {
+                formData.append("file", file);  // Same key 'file' for each file to allow backend getlist("file")
+            });
+
+            try {
+                const response = await fetch("/", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await response.json();
+                const responseBox = document.getElementById("response-box");
+                const responseText = document.getElementById("response-text");
+
+                if (data.error) {
+                    responseText.innerText = "Error: " + data.error;
+                } else {
+                    responseText.innerText = data.response;
+                    document.getElementById("thread_id").value = data.thread_id;
+                }
+
+                responseBox.style.display = "block";
+            } catch (err) {
+                responseText.innerText = "An unexpected error occurred.";
+                document.getElementById("response-box").style.display = "block";
+            }
+        });
+    </script>
 </body>
 </html>
