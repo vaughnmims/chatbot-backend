@@ -13,48 +13,47 @@ CORS(app)
 # Limit upload size to 5MB
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB
 
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# OpenAI setup
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    raise RuntimeError("OPENAI_API_KEY environment variable not set.")
+client = OpenAI(api_key=OPENAI_API_KEY)
 ASSISTANT_ID = "asst_evvcHxQQTnCCFqnDOxcsPjJL"
 
-# Folder to store uploaded files
+# Upload folder config
 UPLOAD_FOLDER = "uploads"
-
-# Check if uploads folder exists and is directory; otherwise handle
-if os.path.exists(UPLOAD_FOLDER):
-    if not os.path.isdir(UPLOAD_FOLDER):
-        raise RuntimeError(f"'{UPLOAD_FOLDER}' exists but is not a directory. Please delete or rename it before running.")
-else:
+if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+elif not os.path.isdir(UPLOAD_FOLDER):
+    raise RuntimeError(f"'{UPLOAD_FOLDER}' exists but is not a directory.")
 
-# Serve the chat form
+# Render index.html (optional route for browser interface)
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html")
 
-# Handle form/JSON submission
+# Main chat route
 @app.route("/", methods=["POST"])
 def chat():
     try:
         if request.is_json:
             data = request.get_json()
-            user_input = data.get("user_input", "")
+            user_input = data.get("user_input", "").strip()
             thread_id = data.get("thread_id")
-            uploaded_file = None  # No files expected in JSON requests
+            uploaded_file = None
         else:
-            user_input = request.form.get("user_input", "")
+            user_input = request.form.get("user_input", "").strip()
             thread_id = request.form.get("thread_id")
             uploaded_file = request.files.get("file")
 
-        # Validate user input
-        if not user_input or user_input.strip() == "":
+        if not user_input:
             return jsonify({"error": "user_input cannot be empty"}), 400
 
-        # Save uploaded file if present
+        # Save file if provided
         file_path = None
-        if uploaded_file:
-            safe_filename = secure_filename(uploaded_file.filename)
-            file_path = os.path.join(UPLOAD_FOLDER, safe_filename)
+        if uploaded_file and uploaded_file.filename:
+            filename = secure_filename(uploaded_file.filename)
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
             uploaded_file.save(file_path)
 
         # Create thread if not provided
@@ -62,7 +61,7 @@ def chat():
             thread = client.beta.threads.create()
             thread_id = thread.id
 
-        # Send user message to assistant thread
+        # Post message
         client.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
@@ -75,70 +74,64 @@ def chat():
             assistant_id=ASSISTANT_ID
         )
 
-        # Poll until run is complete or failed (wait up to ~10 seconds)
-        max_polls = 20
-        polls = 0
-        while run.status not in ["completed", "failed"]:
+        # Poll for assistant reply
+        for _ in range(20):
             time.sleep(0.5)
             run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-            polls += 1
-            if polls >= max_polls:
-                return jsonify({"error": "Assistant response timeout"}), 504
+            if run.status in ["completed", "failed"]:
+                break
 
-        if run.status == "failed":
-            return jsonify({"error": "Assistant run failed"}), 500
+        if run.status != "completed":
+            return jsonify({"error": "Assistant run did not complete in time."}), 504
 
-        # Fetch all messages for the thread
+        # Get messages and response
         messages = client.beta.threads.messages.list(thread_id=thread_id)
-        assistant_messages = [m for m in messages.data if m.role == "assistant"]
+        assistant_msgs = [m for m in messages.data if m.role == "assistant"]
 
-        if not assistant_messages:
-            return jsonify({"error": "No assistant response found"}), 500
+        if not assistant_msgs:
+            return jsonify({"error": "No assistant response found."}), 500
 
-        # Take the last assistant message's text value
-        assistant_reply = assistant_messages[-1].content[0].text.value
+        reply = assistant_msgs[-1].content[0].text.value
 
-        # Email the conversation + attachment if present
-        send_email_to_vaughn(user_input, assistant_reply, file_path)
+        # Send email (optional)
+        send_email_to_vaughn(user_input, reply, file_path)
 
-        return jsonify({"response": assistant_reply, "thread_id": thread_id})
+        return jsonify({"response": reply, "thread_id": thread_id})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-# Email sending helper
 def send_email_to_vaughn(user_msg, assistant_reply, attachment_path=None):
-    EMAIL_ADDRESS = os.getenv("EMAIL_USER")      # Your sending email
-    EMAIL_PASSWORD = os.getenv("EMAIL_PASS")     # App password
+    EMAIL_USER = os.getenv("EMAIL_USER")
+    EMAIL_PASS = os.getenv("EMAIL_PASS")
     RECEIVER = "Vaughn@insurems.com"
 
-    if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
-        print("Email credentials not set. Skipping email.")
+    if not EMAIL_USER or not EMAIL_PASS:
+        print("Email credentials not set, skipping email.")
         return
 
     msg = EmailMessage()
     msg["Subject"] = "New Chat Submission"
-    msg["From"] = EMAIL_ADDRESS
+    msg["From"] = EMAIL_USER
     msg["To"] = RECEIVER
-    msg.set_content(f"User message:\n{user_msg}\n\nAssistant replied:\n{assistant_reply}")
+    msg.set_content(f"User message:\n{user_msg}\n\nAssistant reply:\n{assistant_reply}")
 
     if attachment_path:
         try:
             with open(attachment_path, "rb") as f:
-                data = f.read()
-                name = os.path.basename(attachment_path)
-                msg.add_attachment(data, maintype="application", subtype="octet-stream", filename=name)
+                file_data = f.read()
+                file_name = os.path.basename(attachment_path)
+                msg.add_attachment(file_data, maintype="application", subtype="octet-stream", filename=file_name)
         except Exception as e:
-            print(f"Error attaching file: {e}")
+            print(f"Failed to attach file: {e}")
 
-    # Connect using SMTP_SSL on port 465 (Office365 sometimes uses 587 STARTTLS, adjust if needed)
     try:
         with smtplib.SMTP_SSL("smtp.office365.com", 465) as smtp:
-            smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+            smtp.login(EMAIL_USER, EMAIL_PASS)
             smtp.send_message(msg)
     except Exception as e:
-        print(f"Error sending email: {e}")
+        print(f"Failed to send email: {e}")
 
 
 if __name__ == "__main__":
